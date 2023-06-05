@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 
-	//"html/template"
 	"github.com/xtommas/snippetbox/internal/models"
 )
 
@@ -24,30 +24,30 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, snippet := range snippets {
-		fmt.Fprintf(w, "%+v\n", snippet)
+	// slice (like an array, but dynamic) of strings for the file names
+	files := []string{
+		"./ui/html/base.html",
+		"./ui/html/partials/nav.html",
+		"./ui/html/pages/home.html",
 	}
 
-	// // slice (like an array, but dynamic) of strings for the file names
-	// files := []string{
-	// 	"./ui/html/base.html",
-	// 	"./ui/html/partials/nav.html",
-	// 	"./ui/html/pages/home.html",
-	// }
+	// "files..." unpacks the elements of the slice as individual arguments to the ParseFiles function
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		// use the helpers
+		app.serverError(w, err)
+		return
+	}
 
-	// // "files..." unpacks the elements of the slice as individual arguments to the ParseFiles function
-	// ts, err := template.ParseFiles(files...)
-	// if err != nil {
-	// 	// use the helpers
-	// 	app.serverError(w, err)
-	// 	return
-	// }
+	data := &templateData{
+		Snippets: snippets,
+	}
 
-	// err = ts.ExecuteTemplate(w, "base", nil)
-	// if err != nil {
-	// 	// use the helpers
-	// 	app.serverError(w, err)
-	// }
+	err = ts.ExecuteTemplate(w, "base", data)
+	if err != nil {
+		// use the helpers
+		app.serverError(w, err)
+	}
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
@@ -69,8 +69,30 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// write the snippet data as a plain HTTP response body
-	fmt.Fprintf(w, "%+v", snippet)
+	// slice containing the templates paths
+	files := []string{
+		"./ui/html/base.html",
+		"./ui/html/partials/nav.html",
+		"./ui/html/pages/view.html",
+	}
+
+	// parse the template files
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// create an instance of a templateData struct holding the snippet data
+	data := &templateData{
+		Snippet: snippet,
+	}
+
+	// execute the templates
+	err = ts.ExecuteTemplate(w, "base", data)
+	if err != nil {
+		app.serverError(w, err)
+	}
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {

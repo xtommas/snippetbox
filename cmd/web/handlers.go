@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
 
@@ -24,30 +23,12 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// slice (like an array, but dynamic) of strings for the file names
-	files := []string{
-		"./ui/html/base.html",
-		"./ui/html/partials/nav.html",
-		"./ui/html/pages/home.html",
-	}
+	// get the templateData struct containing the default data (in this case, the current year) and add the snippets slice to it
+	data := app.newTemplateData(r)
+	data.Snippets = snippets
 
-	// "files..." unpacks the elements of the slice as individual arguments to the ParseFiles function
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		// use the helpers
-		app.serverError(w, err)
-		return
-	}
-
-	data := &templateData{
-		Snippets: snippets,
-	}
-
-	err = ts.ExecuteTemplate(w, "base", data)
-	if err != nil {
-		// use the helpers
-		app.serverError(w, err)
-	}
+	// use the render helper
+	app.render(w, http.StatusOK, "home.html", data)
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
@@ -69,30 +50,12 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// slice containing the templates paths
-	files := []string{
-		"./ui/html/base.html",
-		"./ui/html/partials/nav.html",
-		"./ui/html/pages/view.html",
-	}
+	// get the templateData struct containing the default data (in this case, the current year) and add the snippets slice to it
+	data := app.newTemplateData(r)
+	data.Snippet = snippet
 
-	// parse the template files
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		app.serverError(w, err)
-		return
-	}
-
-	// create an instance of a templateData struct holding the snippet data
-	data := &templateData{
-		Snippet: snippet,
-	}
-
-	// execute the templates
-	err = ts.ExecuteTemplate(w, "base", data)
-	if err != nil {
-		app.serverError(w, err)
-	}
+	// use the render helper
+	app.render(w, http.StatusOK, "view.html", data)
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {

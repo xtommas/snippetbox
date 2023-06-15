@@ -18,6 +18,13 @@ type snippetCreateForm struct {
 	validator.Validator `form:"-"`
 }
 
+type userSignUpForm struct {
+	Name                string `form:"name"`
+	Email               string `form:"email"`
+	Password            string `form:"password"`
+	validator.Validator `form:"-"`
+}
+
 // the (app *application) signature means the functions are defined as a method of the application struct (sort of object oriented)
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := app.snippets.Latest()
@@ -109,4 +116,68 @@ func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request
 	app.sessionManager.Put(r.Context(), "flash", "Snippet succesfully created!")
 
 	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
+}
+
+func (app *application) userSignUp(w http.ResponseWriter, r *http.Request) {
+	data := app.newTemplateData(r)
+	data.Form = userSignUpForm{}
+	app.render(w, http.StatusOK, "signup.html", data)
+}
+
+func (app *application) userSignUpPost(w http.ResponseWriter, r *http.Request) {
+	var form userSignUpForm
+
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	form.CheckField(validator.NotBlank(form.Name), "name", "This field cannot be blank")
+	form.CheckField(validator.NotBlank(form.Email), "email", "This field cannot be blank")
+	form.CheckField(validator.Matches(form.Email, validator.EmailRegExp), "email", "This field must be a valid email address")
+	form.CheckField(validator.NotBlank(form.Password), "password", "This field cannot be blank")
+	form.CheckField(validator.MinChars(form.Password, 8), "password", "This field must be at least 8 characters long")
+
+	// if there are any errors, re-display the form with the previous data along with a 422 status code
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, http.StatusUnprocessableEntity, "signup.html", data)
+		return
+	}
+
+	err = app.users.Insert(form.Name, form.Email, form.Password)
+	if err != nil {
+		// if the error is because the email is duplicated, re-render the form with the previous data
+		if errors.Is(err, models.ErrDuplicateEmail) {
+			form.AddFieldError("email", "Email address is already in use")
+
+			data := app.newTemplateData(r)
+			data.Form = form
+			app.render(w, http.StatusUnprocessableEntity, "signup.html", data)
+		} else { // if the error is something else...
+			app.serverError(w, err)
+		}
+
+		return
+	}
+
+	// flash message for the successful sign up
+	app.sessionManager.Put(r.Context(), "flash", "Sign up successful. Please Log In")
+
+	// redirect to the log in page
+	http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+}
+
+func (app *application) userLogIn(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Display an HTML form for logging in a user...")
+}
+
+func (app *application) userLogInPost(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Autheticate and log in a user...")
+}
+
+func (app *application) userLogOutPost(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Log out the user...")
 }

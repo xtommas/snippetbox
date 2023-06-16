@@ -25,6 +25,12 @@ type userSignUpForm struct {
 	validator.Validator `form:"-"`
 }
 
+type userLoginForm struct {
+	Email               string `form:"email"`
+	Password            string `form:"password"`
+	validator.Validator `form:"-"`
+}
+
 // the (app *application) signature means the functions are defined as a method of the application struct (sort of object oriented)
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := app.snippets.Latest()
@@ -171,11 +177,56 @@ func (app *application) userSignUpPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) userLogIn(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Display an HTML form for logging in a user...")
+	data := app.newTemplateData(r)
+	data.Form = userLoginForm{}
+	app.render(w, http.StatusOK, "login.html", data)
 }
 
 func (app *application) userLogInPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Autheticate and log in a user...")
+	var form userLoginForm
+
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
+
+	// validate the form
+	form.CheckField(validator.NotBlank(form.Email), "email", "This field cannot be blank")
+	form.CheckField(validator.Matches(form.Email, validator.EmailRegExp), "email", "This field must be a valid email address")
+	form.CheckField(validator.NotBlank(form.Password), "password", "This field cannot be blank")
+
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, http.StatusUnprocessableEntity, "login.html", data)
+	}
+
+	// check if the credentials are valid
+	id, err := app.users.Authenticate(form.Email, form.Password)
+	if err != nil {
+		if errors.Is(err, models.ErrInvalidCredentials) {
+			form.AddNonFieldError("Email or password is incorrect")
+			data := app.newTemplateData(r)
+			data.Form = form
+			app.render(w, http.StatusUnprocessableEntity, "login.html", data)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// change session Id
+	err = app.sessionManager.RenewToken(r.Context())
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// add the id of the current user to the session
+	app.sessionManager.Put(r.Context(), "authenticatedUserId", id)
+
+	http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
 }
 
 func (app *application) userLogOutPost(w http.ResponseWriter, r *http.Request) {

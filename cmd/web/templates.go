@@ -2,10 +2,12 @@ package main
 
 import (
 	"html/template"
+	"io/fs"
 	"path/filepath"
 	"time"
 
 	"github.com/xtommas/snippetbox/internal/models"
+	"github.com/xtommas/snippetbox/ui"
 )
 
 // holding strcuture for any dynamic data that we need to pass to the HTML templates
@@ -32,8 +34,8 @@ var functions = template.FuncMap{
 func newTemplateCache() (map[string]*template.Template, error) {
 	cache := map[string]*template.Template{}
 
-	// get a slice of all filepaths that match the pattern "./ui/html/pages/*.html"
-	pages, err := filepath.Glob("./ui/html/pages/*.html")
+	// get a slice of all filepaths that match the pattern "./ui/html/pages/*.html" from the embedded filesystem
+	pages, err := fs.Glob(ui.Files, "./ui/html/pages/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -43,20 +45,15 @@ func newTemplateCache() (map[string]*template.Template, error) {
 		// extract the name from the full filepath
 		name := filepath.Base(page)
 
-		// parse the files into a template set
-		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.html")
-		if err != nil {
-			return nil, err
+		// slice containing the filepath patterns for the templates we want to parse
+		patterns := []string{
+			"html/base.html",
+			"html/partials/*.html",
+			page,
 		}
 
-		// call ParseGlob() to add any partials
-		ts, err = ts.ParseGlob("./ui/html/partials/*.html")
-		if err != nil {
-			return nil, err
-		}
-
-		// add the page template
-		ts, err = ts.ParseFiles(page)
+		// parse the template files from the embedded filesystem
+		ts, err := template.New(name).Funcs(functions).ParseFS(ui.Files, patterns...)
 		if err != nil {
 			return nil, err
 		}

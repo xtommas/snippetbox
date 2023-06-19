@@ -14,6 +14,7 @@ import (
 type templateData struct {
 	CurrentYear     int
 	Snippet         *models.Snippet
+	User            *models.User
 	Snippets        []*models.Snippet
 	Form            any
 	Flash           string
@@ -39,7 +40,7 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	cache := map[string]*template.Template{}
 
 	// get a slice of all filepaths that match the pattern "./ui/html/pages/*.html" from the embedded filesystem
-	pages, err := fs.Glob(ui.Files, "./ui/html/pages/*.html")
+	pages, err := fs.Glob(ui.Files, "html/pages/*.html")
 	if err != nil {
 		return nil, err
 	}

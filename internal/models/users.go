@@ -22,6 +22,13 @@ type UserModel struct {
 	DB *sql.DB
 }
 
+// Interfaces define the "methods" that the UserModel struct has, kinda like OOP. Here it's useful to allow mocking dependencies in the application struct
+type UserModelInterface interface {
+	Insert(name, email, password string) error
+	Authenticate(email, password string) (int, error)
+	Exists(id int) (bool, error)
+}
+
 // add a new user to the database
 func (m *UserModel) Insert(name, email, password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)

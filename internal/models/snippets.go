@@ -15,6 +15,13 @@ type Snippet struct {
 	Expires time.Time
 }
 
+// Interfaces define the "methods" that the Snippet struct has, kinda like OOP. Here it's useful to allow mocking dependencies in the application struct
+type SnippetModelInterface interface {
+	Insert(title string, content string, expires int) (int, error)
+	Get(id int) (*Snippet, error)
+	Latest() ([]*Snippet, error)
+}
+
 // snippetModel type that wraps the sql.DB connection pool
 type SnippetModel struct {
 	DB *sql.DB
